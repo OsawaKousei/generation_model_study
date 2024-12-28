@@ -31,5 +31,4 @@
         "error": "Information",
         "note": "Information"
     },
-    "python.analysis.extraPaths": ["src/grid_world"]
 }
