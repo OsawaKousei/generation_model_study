@@ -10,7 +10,7 @@ MODEL_PATH = "src/vae/results/model/model_30.pth"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 net = VAE(INPUT_DIM, HIDDEN_DIM, LATENT_DIM).to(device)
-net.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+net.load_state_dict(torch.load(MODEL_PATH, map_location=device, weights_only=True))
 
 
 with torch.no_grad():
