@@ -13,4 +13,6 @@ dependencies = [
     "numpy>=2.2.1",
     "pre-commit>=4.0.1",
     "pyqt5>=5.15.11",
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
 ]
