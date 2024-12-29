@@ -11,8 +11,10 @@ dependencies = [
     "matplotlib>=3.10.0",
     "mypy>=1.14.0",
     "numpy>=2.2.1",
+    "pandas>=2.2.3",
     "pre-commit>=4.0.1",
     "pyqt5>=5.15.11",
     "torch>=2.5.1",
     "torchvision>=0.20.1",
+    "tqdm>=4.67.1",
 ]
