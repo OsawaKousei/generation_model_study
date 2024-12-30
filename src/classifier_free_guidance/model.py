@@ -24,7 +24,7 @@ def _positional_encoding(
 def positional_encoding(
     ts: torch.Tensor, output_dim: int, device: torch.device
 ) -> torch.Tensor:
-    batch_size = ts.size(0)
+    batch_size = len(ts)
     v = torch.zeros(batch_size, output_dim, device=device)
     for i in range(batch_size):
         v[i] = _positional_encoding(ts[i], output_dim, device)
@@ -55,9 +55,14 @@ class ConvBlock(nn.Module):
         return y
 
 
-class UNet(nn.Module):
-    def __init__(self, in_channels: int = 1, time_embed_dim: int = 100):
-        super(UNet, self).__init__()
+class UNetCond(nn.Module):
+    def __init__(
+        self,
+        in_channels: int = 1,
+        time_embed_dim: int = 100,
+        num_labels: int | None = None,
+    ):
+        super(UNetCond, self).__init__()
         self.time_embed_dim = time_embed_dim
 
         self.down1 = ConvBlock(in_channels, 64, time_embed_dim)
@@ -70,8 +75,19 @@ class UNet(nn.Module):
         self.max_pool = nn.MaxPool2d(2)
         self.upsample = nn.Upsample(scale_factor=2, mode="bilinear")
 
-    def forward(self, x: torch.Tensor, time_steps: torch.Tensor) -> torch.Tensor:
+        if num_labels is not None:
+            self.label_embed = nn.Embedding(num_labels, time_embed_dim)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        time_steps: torch.Tensor,
+        labels: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         v = positional_encoding(time_steps, self.time_embed_dim, x.device)
+
+        if labels is not None:
+            v += self.label_embed(labels)
 
         x1 = self.down1(x, v)
         x2 = self.down2(self.max_pool(x1), v)
@@ -111,7 +127,12 @@ class Diffuser:
         return x_t, noise
 
     def denoise(
-        self, model: nn.Module, x: torch.Tensor, t: torch.Tensor
+        self,
+        model: nn.Module,
+        x: torch.Tensor,
+        t: torch.Tensor,
+        labels: torch.Tensor,
+        gamma: float = 3.0,
     ) -> torch.Tensor:
         assert (t >= 1).all() and (t <= self.num_time_steps).all()
         t_idx = t.long() - 1
@@ -127,7 +148,9 @@ class Diffuser:
 
         model.eval()
         with torch.no_grad():
-            eps = model(x, t)
+            eps_cond = model(x, t, labels)
+            eps_no_cond = model(x, t)
+            eps = eps_no_cond + gamma * (eps_cond - eps_no_cond)
         model.train()
 
         noise = torch.randn_like(x, device=self.device)
@@ -144,13 +167,18 @@ class Diffuser:
         to_pil = torchvision.transforms.ToPILImage()
         return to_pil(x)
 
-    def sample(self, model: nn.Module, x_shape: tuple = (20, 1, 28, 28)) -> list:
+    def sample(
+        self,
+        model: nn.Module,
+        x_shape: tuple = (20, 1, 28, 28),
+        labels: torch.Tensor | None = None,
+    ) -> list:
         batch_size = x_shape[0]
         x = torch.randn(x_shape, device=self.device)
 
         for i in tqdm(range(self.num_time_steps, 0, -1)):
             t = torch.tensor([i] * batch_size, device=self.device, dtype=torch.long)
-            x = self.denoise(model, x, t)
+            x = self.denoise(model, x, t, labels)
 
         images = [self.reverse_to_img(x[i]) for i in range(batch_size)]
 
