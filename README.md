@@ -1,5 +1,5 @@
 # About
-I created this repository for study reinforce learning and share the implemented codes.
+I created this repository for study generation model and share the implemented codes.
 
 I learned RL with 『ゼロから作る Deep Learning ❺』,
 
